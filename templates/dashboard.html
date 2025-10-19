@@ -1,0 +1,136 @@
+{% extends "layout.html" %} {% block content %}
+
+<div class="max-w-7xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
+  <!-- Page Title -->
+  <h1 class="text-4xl font-bold text-gray-800 mb-6 text-center">
+    Mark Attendance
+  </h1>
+
+  <!-- Webcam & Instructions -->
+  <div class="flex flex-col md:flex-row items-start justify-between gap-8">
+    <!-- Webcam -->
+    <div
+      class="flex flex-col items-center bg-gray-100 p-6 rounded-xl shadow-md w-full md:w-1/2"
+    >
+      <video
+        id="video"
+        class="rounded-lg border-4 border-gray-300"
+        width="320"
+        height="240"
+        autoplay
+      ></video>
+      <button
+        id="captureBtn"
+        class="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
+      >
+        Capture & Mark Attendance
+      </button>
+      <p id="status" class="mt-2 font-semibold text-gray-700"></p>
+    </div>
+
+    <!-- Instructions -->
+    <div class="bg-gray-50 p-6 rounded-xl shadow-md w-full md:w-1/2">
+      <h2 class="text-2xl font-semibold text-gray-800 mb-4">Instructions:</h2>
+      <ul class="list-disc list-inside text-gray-700 space-y-2">
+        <li>Ensure the webcam can clearly see the student’s face.</li>
+        <li>Good lighting improves recognition accuracy.</li>
+        <li>Click “Capture & Mark Attendance” to mark the student present.</li>
+        <li>
+          The system updates attendance automatically and shows the result
+          below.
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Attendance Table -->
+  <div class="mt-10">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">Today's Attendance</h2>
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-white rounded-lg shadow-md overflow-hidden">
+        <thead class="bg-gray-800 text-white">
+          <tr>
+            <th class="py-3 px-4 text-left">Student Name</th>
+            <th class="py-3 px-4 text-left">Roll No</th>
+            <th class="py-3 px-4 text-left">Status</th>
+          </tr>
+        </thead>
+        <tbody id="attendanceTable" class="divide-y divide-gray-200">
+          {% for user in users %}
+          <tr id="user-{{ user.id }}">
+            <td class="py-2 px-4">{{ user.name }}</td>
+            <td class="py-2 px-4">{{ user.roll or '-' }}</td>
+            {% if rows[user.id] %}
+            <td class="py-2 px-4 font-bold text-green-600">
+              {{ rows[user.id]['status'] }}
+            </td>
+            {% else %}
+            <td class="py-2 px-4 font-bold text-red-600">absent</td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Webcam JS -->
+<script>
+  const video = document.getElementById("video");
+  const statusText = document.getElementById("status");
+  const tableBody = document.getElementById("attendanceTable");
+
+  // Access webcam
+  navigator.mediaDevices
+    .getUserMedia({ video: true })
+    .then((stream) => (video.srcObject = stream))
+    .catch((err) => console.error("Webcam error:", err));
+
+  // Capture & mark attendance
+  document.getElementById("captureBtn").addEventListener("click", async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+
+    const dataURL = canvas.toDataURL("image/jpeg");
+
+    const response = await fetch("/recognize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: dataURL }),
+    });
+
+    const result = await response.json();
+
+    if (result.recognized) {
+      statusText.innerText = `Marked present: ${result.name}`;
+      statusText.className = "mt-2 font-semibold text-green-600";
+      updateAttendanceTable(result.user_id, result.name, "present");
+    } else {
+      statusText.innerText = "No face recognized";
+      statusText.className = "mt-2 font-semibold text-red-600";
+    }
+  });
+
+  // Update table dynamically
+  function updateAttendanceTable(id, name, status) {
+    let row = document.getElementById("user-" + id);
+    if (!row) {
+      row = document.createElement("tr");
+      row.id = "user-" + id;
+      row.innerHTML = `
+      <td class="py-2 px-4">${name}</td>
+      <td class="py-2 px-4">-</td>
+      <td class="py-2 px-4 font-bold text-green-600">${status}</td>
+    `;
+      tableBody.appendChild(row);
+    } else {
+      row.cells[2].innerText = status;
+      row.cells[2].className = "py-2 px-4 font-bold text-green-600";
+    }
+  }
+</script>
+
+{% endblock %}

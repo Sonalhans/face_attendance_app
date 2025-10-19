@@ -1,0 +1,58 @@
+{% extends "layout.html" %} {% block content %}
+<div class="max-w-7xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-3xl font-bold text-gray-800">Attendance</h1>
+    <form action="{{ url_for('attendance_export') }}" method="GET">
+      <input
+        type="date"
+        name="date"
+        value="{{ date }}"
+        class="px-3 py-2 border rounded-lg mr-2"
+      />
+      <button
+        type="submit"
+        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+      >
+        Export CSV
+      </button>
+    </form>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full bg-white rounded-lg shadow-md overflow-hidden">
+      <thead class="bg-gray-800 text-white">
+        <tr>
+          <th class="py-3 px-6 text-left">ID</th>
+          <th class="py-3 px-6 text-left">Name</th>
+          <th class="py-3 px-6 text-left">Roll</th>
+          <th class="py-3 px-6 text-left">Status</th>
+          <th class="py-3 px-6 text-left">Timestamp</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-200">
+        {% for user in users %} {% set row = rows.get(user.id) %}
+        <tr class="hover:bg-gray-100 transition">
+          <td class="py-2 px-4">{{ user.id }}</td>
+          <td class="py-2 px-4">{{ user.name }}</td>
+          <td class="py-2 px-4">{{ user.roll or '-' }}</td>
+          <td class="py-2 px-4">
+            {% if row %}
+            <span
+              class="px-2 py-1 rounded-full {% if row['status'] == 'present' %}bg-green-200 text-green-800 {% else %}bg-red-200 text-red-800{% endif %}"
+            >
+              {{ row['status'] | capitalize }}
+            </span>
+            {% else %}
+            <span class="px-2 py-1 rounded-full bg-gray-200 text-gray-700">
+              Absent
+            </span>
+            {% endif %}
+          </td>
+          <td class="py-2 px-4">{{ row['timestamp'][:19] if row else '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

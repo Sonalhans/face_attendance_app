@@ -1,0 +1,117 @@
+{% extends "layout.html" %} {% block content %}
+<div
+  class="bg-white/90 backdrop-blur-md p-6 rounded-lg shadow-lg max-w-xl mx-auto"
+>
+  <h2 class="text-2xl font-bold mb-6 text-gray-800">
+    {{ 'Edit User' if edit else 'Add User' }}
+  </h2>
+
+  <form method="post" id="userForm" class="space-y-4">
+    <div>
+      <label class="block font-medium text-gray-700 mb-1">Name</label>
+      <input
+        name="name"
+        value="{{ user[1] if user else '' }}"
+        class="border p-2 w-full rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        required
+      />
+    </div>
+
+    <div>
+      <label class="block font-medium text-gray-700 mb-1">Roll</label>
+      <input
+        name="roll"
+        value="{{ user[2] if user else '' }}"
+        class="border p-2 w-full rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+    </div>
+
+    <div>
+      <label class="block font-medium text-gray-700 mb-1">Email</label>
+      <input
+        name="email"
+        value="{{ user[3] if user else '' }}"
+        class="border p-2 w-full rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+    </div>
+
+    {% if not edit %}
+    <div>
+      <video
+        id="video"
+        autoplay
+        playsinline
+        class="w-full border rounded-md"
+      ></video>
+      <div class="mt-2">
+        <button
+          type="button"
+          id="captureBtn"
+          class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+        >
+          Capture 5 Images
+        </button>
+      </div>
+      <div id="preview" class="mt-2 flex gap-2 flex-wrap"></div>
+    </div>
+    {% endif %}
+
+    <div>
+      <button
+        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition w-full"
+      >
+        Save
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  const images = [];
+  const preview = document.getElementById("preview");
+  const video = document.getElementById("video");
+
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then((stream) => (video.srcObject = stream))
+      .catch((e) => console.warn("Camera not available:", e));
+  } else {
+    alert("Camera API not supported in this browser.");
+  }
+
+  document.getElementById("captureBtn")?.addEventListener("click", () => {
+    let captures = 0;
+    const canvas = document.createElement("canvas");
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext("2d");
+
+    const take = () => {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const data = canvas.toDataURL("image/jpeg");
+      images.push(data);
+
+      const img = document.createElement("img");
+      img.src = data;
+      img.width = 100;
+      img.classList.add("rounded-md", "border");
+      preview.appendChild(img);
+
+      captures++;
+      if (captures < 5) setTimeout(take, 400);
+      else {
+        const form = document.getElementById("userForm");
+        images.forEach((i) => {
+          const inp = document.createElement("input");
+          inp.type = "hidden";
+          inp.name = "images[]";
+          inp.value = i;
+          form.appendChild(inp);
+        });
+      }
+    };
+    take();
+  });
+</script>
+{% endblock %}

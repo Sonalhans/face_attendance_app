@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Face Attendance App</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body
+    class="relative bg-[url('{{ url_for('static', filename='background.png') }}')] bg-no-repeat bg-cover bg-gray-100 min-h-screen flex flex-col"
+  >
+    <!-- Overlay for background -->
+    <div class="absolute inset-0 bg-black/30 backdrop-blur-sm z-0"></div>
+
+    <!-- Page content wrapper -->
+    <div class="relative z-10 flex flex-col min-h-screen">
+      <!-- Navbar -->
+      <nav class="bg-gray-800 text-white shadow-md">
+        <div class="max-w-6xl mx-auto px-4">
+          <div class="flex justify-between items-center h-16">
+            <div class="flex space-x-4">
+              <a
+                href="{{ url_for('dashboard') }}"
+                class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition"
+                >Dashboard</a
+              >
+              <a
+                href="{{ url_for('users') }}"
+                class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition"
+                >Users</a
+              >
+              <a
+                href="{{ url_for('attendance_view') }}"
+                class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition"
+                >Attendance</a
+              >
+            </div>
+            <div>
+              <a
+                href="{{ url_for('logout') }}"
+                class="px-3 py-2 rounded-md text-sm font-medium bg-red-600 hover:bg-red-700 transition"
+                >Logout</a
+              >
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Main content -->
+      <main class="flex-grow max-w-6xl mx-auto w-full p-6">
+        {% block content %}{% endblock %}
+      </main>
+
+      <!-- Footer -->
+      <footer
+        class="bg-gray-900 text-white text-center py-2 text-sm opacity-50"
+      >
+        &copy; {{ current_year }} — Made by
+        <span class="font-semibold">Sonal</span> and
+        <span class="font-semibold">Manpreet</span>
+      </footer>
+    </div>
+  </body>
+</html>
