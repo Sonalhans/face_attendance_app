@@ -55,7 +55,7 @@ This project allows admins to manage users, record attendance using face recogni
 ### 1️⃣ Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/face-attendance-app.git
+git clone https://github.com/sonalhans/face-attendance-app.git
 cd face-attendance-app
 ```
 
