@@ -34,7 +34,7 @@ This project allows admins to manage users, record attendance using face recogni
 
 * 🖋️ **Watermark Branding**
 
-  * A subtle “@made by Sonal and Manpreet” watermark at the bottom.
+  * A subtle “@made by Sonal” watermark at the bottom.
 
 ---
 
@@ -55,8 +55,8 @@ This project allows admins to manage users, record attendance using face recogni
 ### 1️⃣ Clone the Repository
 
 ```bash
-git clone https://github.com/sonalhans/face-attendance-app.git
-cd face-attendance-app
+git clone https://github.com/sonalhans/face_attendance_app.git
+cd face_attendance_app
 ```
 
 ### 2️⃣ Create a Virtual Environment
