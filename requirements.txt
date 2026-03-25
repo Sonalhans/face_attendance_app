@@ -5,4 +5,4 @@ numpy
 Pillow>=10.3.0
 SQLAlchemy
 werkzeug==3.0.0
-
+gunicorn
