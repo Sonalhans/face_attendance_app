@@ -86,7 +86,7 @@
     const form = document.getElementById("deleteForm");
     const modalText = document.getElementById("modalText");
     modalText.textContent = `Are you sure you want to delete user "${userName}"?`;
-    form.action = `/delete_user/${userId}`;
+    form.action = `/users/delete/${userId}`;
     modal.classList.remove("hidden");
   }
 
