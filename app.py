@@ -226,6 +226,14 @@ def add_user():
 
         conn = get_db()
         cur = conn.cursor()
+        
+        if roll:
+            cur.execute("SELECT id FROM users WHERE roll=? AND admin_username=?", (roll, current_admin))
+            if cur.fetchone():
+                conn.close()
+                flash(f"Roll number {roll} is already assigned to another user.")
+                return redirect(url_for("add_user"))
+                
         cur.execute("INSERT INTO users (name, roll, email, admin_username) VALUES (?, ?, ?, ?)", (name, roll, email, current_admin))
         user_id = cur.lastrowid
         conn.commit()
@@ -259,6 +267,13 @@ def edit_user(user_id):
         name = request.form["name"]
         roll = request.form.get("roll")
         email = request.form.get("email")
+        
+        if roll:
+            cur.execute("SELECT id FROM users WHERE roll=? AND admin_username=? AND id != ?", (roll, current_admin, user_id))
+            if cur.fetchone():
+                flash(f"Roll number {roll} is already assigned to another user.")
+                return redirect(url_for("edit_user", user_id=user_id))
+                
         cur.execute("UPDATE users SET name=?, roll=?, email=? WHERE id=? AND admin_username=?", (name, roll, email, user_id, current_admin))
         conn.commit()
         conn.close()
