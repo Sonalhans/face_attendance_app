@@ -41,7 +41,8 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             roll TEXT,
-            email TEXT
+            email TEXT,
+            admin_username TEXT
         );
         CREATE TABLE IF NOT EXISTS attendance (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,6 +53,11 @@ def init_db():
             FOREIGN KEY(user_id) REFERENCES users(id)
         );
     """)
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN admin_username TEXT")
+        cur.execute("UPDATE users SET admin_username = 'admin' WHERE admin_username IS NULL")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
     conn.close()
 
@@ -159,15 +165,40 @@ def login():
     return render_template("login.html")
 
 
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        if not username or not password:
+            flash("Both username and password are required")
+            return redirect(url_for("signup"))
+        
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute("INSERT INTO admins (username, password) VALUES (?, ?)", (username, hash_password(password)))
+            conn.commit()
+            flash(f"Admin '{username}' created successfully. Please login.")
+            return redirect(url_for("login"))
+        except sqlite3.IntegrityError:
+            flash(f"Username '{username}' already exists.")
+        finally:
+            conn.close()
+            
+    return render_template("signup.html")
+
+
 @app.route("/dashboard")
 @admin_required
 def dashboard():
+    current_admin = request.cookies.get("admin")
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM users ORDER BY id")
+    cur.execute("SELECT * FROM users WHERE admin_username=? ORDER BY id", (current_admin,))
     users = cur.fetchall()
     today = datetime.date.today().isoformat()
-    cur.execute("SELECT * FROM attendance WHERE date=?", (today,))
+    cur.execute("SELECT a.* FROM attendance a JOIN users u ON a.user_id = u.id WHERE u.admin_username=? AND a.date=?", (current_admin, today))
     rows = {r["user_id"]: r for r in cur.fetchall()}
     conn.close()
     return render_template("dashboard.html", users=users, rows=rows, current_year=datetime.date.today().year)
@@ -176,9 +207,10 @@ def dashboard():
 @app.route("/users")
 @admin_required
 def users():
+    current_admin = request.cookies.get("admin")
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM users ORDER BY id")
+    cur.execute("SELECT * FROM users WHERE admin_username=? ORDER BY id", (current_admin,))
     rows = cur.fetchall()
     conn.close()
     return render_template("users.html", users=rows)
@@ -186,6 +218,7 @@ def users():
 @app.route("/users/add", methods=["GET", "POST"])
 @admin_required
 def add_user():
+    current_admin = request.cookies.get("admin")
     if request.method == "POST":
         name = request.form["name"]
         roll = request.form.get("roll")
@@ -193,7 +226,7 @@ def add_user():
 
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("INSERT INTO users (name, roll, email) VALUES (?, ?, ?)", (name, roll, email))
+        cur.execute("INSERT INTO users (name, roll, email, admin_username) VALUES (?, ?, ?, ?)", (name, roll, email, current_admin))
         user_id = cur.lastrowid
         conn.commit()
         conn.close()
@@ -219,29 +252,37 @@ def add_user():
 @app.route("/users/edit/<int:user_id>", methods=["GET", "POST"])
 @admin_required
 def edit_user(user_id):
+    current_admin = request.cookies.get("admin")
     conn = get_db()
     cur = conn.cursor()
     if request.method == "POST":
         name = request.form["name"]
         roll = request.form.get("roll")
         email = request.form.get("email")
-        cur.execute("UPDATE users SET name=?, roll=?, email=? WHERE id=?", (name, roll, email, user_id))
+        cur.execute("UPDATE users SET name=?, roll=?, email=? WHERE id=? AND admin_username=?", (name, roll, email, user_id, current_admin))
         conn.commit()
         conn.close()
         flash("Updated.")
         return redirect(url_for("users"))
 
-    cur.execute("SELECT * FROM users WHERE id=?", (user_id,))
+    cur.execute("SELECT * FROM users WHERE id=? AND admin_username=?", (user_id, current_admin))
     user = cur.fetchone()
     conn.close()
+    if not user:
+        return redirect(url_for("users"))
     return render_template("add_user.html", user=user, edit=True)
 
 @app.route("/users/delete/<int:user_id>", methods=["POST"])
 @admin_required
 def delete_user(user_id):
+    current_admin = request.cookies.get("admin")
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM users WHERE id=?", (user_id,))
+    cur.execute("SELECT id FROM users WHERE id=? AND admin_username=?", (user_id, current_admin))
+    if not cur.fetchone():
+        conn.close()
+        return redirect(url_for("users"))
+    cur.execute("DELETE FROM users WHERE id=? AND admin_username=?", (user_id, current_admin))
     conn.commit()
     conn.close()
 
@@ -311,9 +352,14 @@ def recognize():
             matches = face_recognition.compare_faces(enc_list, fe, tolerance=0.5)
             if True in matches:
                 uid = int(user_id)
-                today = datetime.date.today().isoformat()
+                current_admin = request.cookies.get("admin")
                 conn = get_db()
                 cur = conn.cursor()
+                cur.execute("SELECT * FROM users WHERE id=? AND admin_username=?", (uid, current_admin))
+                if not cur.fetchone():
+                    conn.close()
+                    continue
+                today = datetime.date.today().isoformat()
                 cur.execute("SELECT * FROM attendance WHERE user_id=? AND date=?", (uid, today))
                 if not cur.fetchone():
                     cur.execute(
@@ -334,12 +380,13 @@ def recognize():
 @app.route("/attendance")
 @admin_required
 def attendance_view():
+    current_admin = request.cookies.get("admin")
     date_q = request.args.get("date", datetime.date.today().isoformat())
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM users ORDER BY id")
+    cur.execute("SELECT * FROM users WHERE admin_username=? ORDER BY id", (current_admin,))
     users = cur.fetchall()
-    cur.execute("SELECT * FROM attendance WHERE date=?", (date_q,))
+    cur.execute("SELECT a.* FROM attendance a JOIN users u ON a.user_id = u.id WHERE u.admin_username=? AND a.date=?", (current_admin, date_q))
     rows = {r["user_id"]: r for r in cur.fetchall()}
     conn.close()
     return render_template("attendance_view.html", users=users, rows=rows, date=date_q)
@@ -347,12 +394,13 @@ def attendance_view():
 @app.route("/attendance/export")
 @admin_required
 def attendance_export():
+    current_admin = request.cookies.get("admin")
     date_q = request.args.get("date", datetime.date.today().isoformat())
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, name, roll FROM users ORDER BY id")
+    cur.execute("SELECT id, name, roll FROM users WHERE admin_username=? ORDER BY id", (current_admin,))
     users = cur.fetchall()
-    cur.execute("SELECT user_id, status FROM attendance WHERE date=?", (date_q,))
+    cur.execute("SELECT a.user_id, a.status FROM attendance a JOIN users u ON a.user_id = u.id WHERE u.admin_username=? AND a.date=?", (current_admin, date_q))
     present = {r["user_id"]: r["status"] for r in cur.fetchall()}
     conn.close()
 
